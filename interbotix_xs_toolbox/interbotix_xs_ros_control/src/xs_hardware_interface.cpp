@@ -101,7 +101,11 @@ CallbackReturn XSHardwareInterface::on_init(const hardware_interface::HardwareIn
   // create thread that spins the executor for the pubs, subs, and services
   update_thread = std::thread(&XSHardwareInterface::executor_cb, this);
 
-  while (joint_states.position.size() == 0 && rclcpp::ok()) {
+  /* Wait for the first joint state message to arrive with ALL joint states.
+      This is necessary because the the kobuki node implemented with the kobuki 
+      base version publishes the joint states of the wheels before the xs_sdk 
+      node is able to publish the arm joint states. */
+  while (joint_states.position.size() < num_joints && rclcpp::ok()) {
     RCLCPP_INFO_ONCE(nh->get_logger(), "Waiting for joint states...");
   }
 
@@ -226,8 +230,14 @@ return_type XSHardwareInterface::write(const rclcpp::Time &, const rclcpp::Durat
 
 void XSHardwareInterface::joint_state_cb(const sensor_msgs::msg::JointState & msg)
 {
-  std::lock_guard<std::mutex> lck(joint_state_mtx_);
-  joint_states = msg;
+  /* To avoid messages that does noe contain all joint states, check if the
+      number of joints is not zero [set by default and updatet with on_init()] 
+      and if the message contains more joints than the number of joints of the
+      group. */
+  if (num_joints != 0 && msg.position.size() > num_joints) {
+    std::lock_guard<std::mutex> lck(joint_state_mtx_);
+    joint_states = msg;
+  }
 }
 
 }  // namespace interbotix_xs_ros_control

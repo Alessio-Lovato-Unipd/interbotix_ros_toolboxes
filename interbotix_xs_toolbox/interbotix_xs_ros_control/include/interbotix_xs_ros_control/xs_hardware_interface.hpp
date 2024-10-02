@@ -153,7 +153,7 @@ protected:
   std::mutex joint_state_mtx_;
 
   // The number of joints in the robot
-  size_t num_joints;
+  size_t num_joints{0};
 
   // joint_states message from the joint_states topic
   sensor_msgs::msg::JointState joint_states;
